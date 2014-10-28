@@ -1,0 +1,399 @@
+<html lang="en">
+	<head>
+		<title>Space Sequencer</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<script type="text/javascript" src="js/jquery.min.js" ></script>
+		<script type="text/javascript" src="js/Tone.js"></script>
+		<script type="text/javascript" src="js/three.min.js"></script>
+	</head>
+
+	<body>
+		<script type="text/javascript">
+
+			// set keys at vertial
+			var keys = new Tone.MultiSampler({
+				"cowbell": "music/cowbell.wav",
+				"hihat": "music/hihat1.wav",
+				"kick1": "music/kick1.wav",
+				"kick2": "music/kick2.wav",
+				"kick3": "music/kick3.wav",
+				"snare1": "music/snare1.wav",
+				"snare2": "music/snare2.wav",
+				"snare3": "music/snare3.wav",
+				"snare4": "music/snare4.wav",
+				"snare5": "music/snare5.wav",
+			}, function(){
+				// function to start the program
+				intersectStart();
+			});
+			keys.toMaster();
+
+			// tone
+			var stepNumber = 0;
+			var beatsPerMeasure = 16;
+			var keysNumber = 8; 
+
+			// UI
+			var step = 100;
+			var width = beatsPerMeasure * step;
+			var height = keysNumber * step; 
+			var offsetX = width/2;
+			var offsetZ = height/2;
+
+			var noteNames = ["cowbell", "hihat", "kick1", "kick2", "kick3", "snare1", "snare2", "snare3", "snare4", "snare5"];
+
+			var lastTime = 0;
+
+
+
+			// tone.js transport >>>> loop every 16n note
+
+			Tone.Transport.setLoopEnd("1m");
+			Tone.Transport.loop = true;
+			Tone.Transport.setInterval(function(time){
+				// light up current column with step counter
+				
+				// console.log(time - lastTime);
+				// lastTime = time;
+				stepNumber = (stepNumber+1) % 16;
+
+				lightUp();
+				/*
+				for (var i = 0; i < checkboxes.length; i++){
+				var box = checkboxes[i][stepNumber];
+				if (box.isChecked()){
+					keys.triggerAttack(noteNames[i], time);
+				}}
+				*/
+
+				// trigger music file here: keys.triggerAttack(noteNames[i], time);
+
+
+
+			}, "16n");
+			
+
+
+
+			// UI
+			var container;
+			var camera, scene, renderer;
+			var projector, plane;
+			var mouse2D, mouse3D, raycaster, theta = 0,
+
+			
+			target = new THREE.Vector3( 0, 200, 400 );
+			var normalMatrix = new THREE.Matrix3();
+
+			var cubeGeometry = new THREE.BoxGeometry( 100, 100, 100 );
+			var cubeMaterial; 
+			var objects = [];
+
+			var isIntersected = false;
+			
+			// camera
+			var theta = 45 * 0.5, isCtrlDown = false;
+			
+
+			init();
+			animate();
+
+
+			function getRandomColor() {
+			    var letters = '0123456789ABCDEF'.split('');
+			    var color = '#';
+			    for (var i = 0; i < 6; i++ ) {
+			        color += letters[Math.floor(Math.random() * 16)];
+			    }
+			    return color;
+			}
+
+			
+
+			function init() {
+
+				container = document.createElement('div');
+				document.body.appendChild(container);
+
+				camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 10000 );
+				
+				// camera.position.set(0, 900, 0);
+				scene = new THREE.Scene();
+				
+				// Grid >>> processing方法画
+				var geometry = new THREE.Geometry();
+
+				// 8 instruments/rows
+				// 16 beats layout
+				for (var i = 0; i <= beatsPerMeasure; i++) {
+					for(var j= 0; j <= keysNumber; j++) {
+						// 8 rows
+						geometry.vertices.push(new THREE.Vector3(0 - offsetX, 0, j*step - offsetZ));
+						geometry.vertices.push(new THREE.Vector3(width - offsetX, 0, j*step - offsetZ));
+						// 16 columns
+						geometry.vertices.push(new THREE.Vector3(i*step - offsetX, 0, 0 - offsetZ));
+						geometry.vertices.push(new THREE.Vector3(i*step - offsetX, 0, height - offsetZ));
+					}
+				}
+
+
+				var material = new THREE.LineDashedMaterial( { color: 0xffffff, linewidth:0.05} );
+
+				var line = new THREE.Line( geometry, material );
+				line.type = THREE.LinePieces;
+				scene.add( line );
+				
+				
+
+				projector = new THREE.Projector();
+
+				var planeMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
+
+				plane = new THREE.Mesh( new THREE.PlaneGeometry( width, height ), planeMaterial );
+				// set plane position according to Grid
+				plane.position.set(beatsPerMeasure/2*step - offsetX, 0, keysNumber/2*step - offsetZ);
+				
+
+				plane.rotation.x = - Math.PI / 2;
+				plane.visible = false;
+			
+				scene.add( plane );
+
+				objects.push(plane);
+
+				var material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
+
+				mouse2D = new THREE.Vector3( 0, 10000, 0.5 );	
+
+				// 1) lightened indicator
+				var ambientLight = new THREE.AmbientLight( 0x606060 );		
+				scene.add( ambientLight );
+
+				var directionalLight = new THREE.DirectionalLight( 0xffffff );
+				directionalLight.position.x = Math.random() - 0.5;
+				directionalLight.position.y = Math.random() - 0.5;
+				directionalLight.position.z = Math.random() - 0.5;
+				directionalLight.position.normalize();
+				scene.add( directionalLight );
+
+				var directionalLight = new THREE.DirectionalLight( 0x808080 );
+				directionalLight.position.x = Math.random() - 0.5;
+				directionalLight.position.y = Math.random() - 0.5;
+				directionalLight.position.z = Math.random() - 0.5;
+				directionalLight.position.normalize();
+				scene.add( directionalLight );
+
+
+				// renderer
+
+				renderer = new THREE.CanvasRenderer();
+
+				
+				renderer.setClearColor( 0x000000 );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild(renderer.domElement);
+
+				// 2) add bricks
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+
+				//camera
+				document.addEventListener( 'keydown', onDocumentKeyDown, false );
+				document.addEventListener( 'keyup', onDocumentKeyUp, false );
+					
+				window.addEventListener( 'resize', onWindowResize, false );
+
+
+				// drawGrid();
+
+			}
+
+
+
+
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}
+
+			// move brick
+			function onDocumentMouseMove( event ) {
+
+				event.preventDefault();
+
+				mouse2D.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse2D.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+				var intersects = raycaster.intersectObjects( scene.children );
+
+				if ( intersects.length > 0 ) {
+					// TODO
+				}
+			}
+
+			//  ********************************************** drop brick ***************************************************
+			//  ********************************************** drop brick ***************************************************
+			function onDocumentMouseDown(event) {
+				event.preventDefault();
+
+				var intersects = raycaster.intersectObjects(objects);
+				cubeMaterial = new THREE.MeshLambertMaterial( { color: getRandomColor(), overdraw: 0.9, opacity:0.9 } );
+				// cubeMaterial = new THREE.MeshLambertMaterial( { color: getRandomColor(), overdraw: 0.9, opacity:0.9 } );
+
+				if(intersects.length > 0) {
+					isIntersected = true;
+					var intersect = intersects[0];
+
+					normalMatrix.getNormalMatrix(intersect.object.matrixWorld);
+
+					var normal = intersect.face.normal.clone();
+					normal.applyMatrix3(normalMatrix).normalize();
+
+					var voxel = new THREE.Mesh(cubeGeometry, cubeMaterial);
+					voxel.position.addVectors(intersect.point, normal);
+					voxel.position.divideScalar(100).floor().multiplyScalar(100).addScalar(50);
+					scene.add(voxel);
+
+					objects.push(voxel);
+
+					console.log(voxel.position);
+				}
+				// console.log(intersects.length);
+
+			}
+
+
+			function onDocumentKeyDown( event ) {
+
+				switch( event.keyCode ) {
+
+					
+					case 17: isCtrlDown = true; break;
+
+				}
+
+			}
+
+			function onDocumentKeyUp( event ) {
+
+				switch ( event.keyCode ) {
+
+					
+					case 17: isCtrlDown = false; break;
+
+				}
+
+			}
+
+
+
+
+			// start/stop
+			function intersectStart() {
+				// if (isIntersected) {
+					Tone.Transport.start();
+				// } else {
+				// 	Tone.Transport.stop();
+				// }				
+			}
+
+
+
+	
+			// draw lightened column
+			function lightUp() {
+				
+				var rectGeometry = new THREE.Geometry();
+				var gridGeometry = new THREE.Geometry();
+			
+
+				
+				var pastStepNumber;
+				if(stepNumber === 0) {
+					pastStepNumber = 15;
+				} 
+				else {
+					pastStepNumber = stepNumber -1;
+				}
+
+				// white squares
+
+				// for (var i = 0; i <= keysNumber; i++) {
+				var i = 8;
+					// red current grid
+					// rows
+					rectGeometry.vertices.push(new THREE.Vector3(stepNumber*step - offsetX, 0, i*step - offsetZ));
+					rectGeometry.vertices.push(new THREE.Vector3(stepNumber*step - offsetX + step, 0, i*step - offsetZ));
+					
+					
+					// black update grid
+					// rows
+					gridGeometry.vertices.push(new THREE.Vector3(pastStepNumber*step - offsetX, 0, i*step - offsetZ));
+					gridGeometry.vertices.push(new THREE.Vector3(pastStepNumber*step - offsetX + step, 0, i*step - offsetZ));
+					
+					
+					
+				// }
+
+				var gridMaterial = new THREE.LineBasicMaterial( { color: 0xffffff, linewidth:3} );
+				var line = new THREE.Line( gridGeometry, gridMaterial );
+				line.type = THREE.LinePieces;
+				
+				
+				var rectMaterial = new THREE.LineBasicMaterial( { color: 0xff0000, linewidth:3} );
+				var lineline = new THREE.Line( rectGeometry, rectMaterial);
+				lineline.type = THREE.LinePieces;
+	
+				scene.add(lineline);
+				scene.add( line );
+				
+				/*
+				console.log("stepNumber: " + stepNumber + " ;" + "pastStepNumber: " + pastStepNumber);
+				if (stepNumber === 15) {
+					console.log("=============================================");
+				}
+				*/	
+			}
+
+
+			// call 1) & 2)
+			function animate(){
+				requestAnimationFrame( animate );
+				render();
+			}
+
+
+			function render(){
+
+				if ( isCtrlDown ) {
+
+					theta += mouse2D.x * 1.5;
+
+				}
+
+				camera.position.set(0, 900, 0);
+				// camera.position.x = 1400 * Math.sin( theta * Math.PI / 360 );
+				// camera.position.z = 1400 * Math.cos( theta * Math.PI / 360 );
+				camera.position.x = 1400 * Math.sin( THREE.Math.degToRad( theta ) );
+				camera.position.z = 1400 * Math.cos( THREE.Math.degToRad( theta ) );
+
+				camera.lookAt( target );
+
+				
+
+				raycaster = projector.pickingRay( mouse2D.clone(), camera );
+				renderer.render( scene, camera );
+			}
+
+
+
+		
+
+
+
+		</script>
+	</body>
+</html>

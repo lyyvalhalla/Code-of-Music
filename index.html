@@ -33,6 +33,8 @@
 			var stepNumber = 0;
 			var beatsPerMeasure = 16;
 			var keysNumber = 8; 
+			var keysCeck = [];
+			keysCeck.length = keysNumber;
 
 			// UI
 			var step = 100;
@@ -69,7 +71,9 @@
 
 				// trigger music file here: keys.triggerAttack(noteNames[i], time);
 
-
+					//keys.triggerAttack(noteNames[2], time);
+				
+				
 
 			}, "16n");
 			
@@ -234,12 +238,14 @@
 				}
 			}
 
+
+			var intersects;
 			//  ********************************************** drop brick ***************************************************
 			//  ********************************************** drop brick ***************************************************
 			function onDocumentMouseDown(event) {
 				event.preventDefault();
 
-				var intersects = raycaster.intersectObjects(objects);
+				intersects = raycaster.intersectObjects(objects);
 				cubeMaterial = new THREE.MeshLambertMaterial( { color: getRandomColor(), overdraw: 0.9, opacity:0.9 } );
 				// cubeMaterial = new THREE.MeshLambertMaterial( { color: getRandomColor(), overdraw: 0.9, opacity:0.9 } );
 

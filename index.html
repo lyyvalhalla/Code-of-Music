@@ -12,29 +12,30 @@
 		<script type="text/javascript">
 
 			// set keys at vertial
-			var keys = new Tone.MultiSampler({
-				"cowbell": "music/cowbell.wav",
-				"hihat": "music/hihat1.wav",
-				"kick1": "music/kick1.wav",
-				"kick2": "music/kick2.wav",
-				"kick3": "music/kick3.wav",
-				"snare1": "music/snare1.wav",
-				"snare2": "music/snare2.wav",
-				"snare3": "music/snare3.wav",
-				"snare4": "music/snare4.wav",
-				"snare5": "music/snare5.wav",
-			}, function(){
-				// function to start the program
-				intersectStart();
-			});
-			keys.toMaster();
+			var cowbell = new Tone.Sampler('music/cowbell.wav');
+			var hihat = new Tone.Sampler('music/hihat1.wav');
+			var kick1 = new Tone.Sampler('music/kick1.wav');
+			var kick2 = new Tone.Sampler('music/kick2.wav');
+			var kick3 = new Tone.Sampler('music/kick3.wav');
+			var snare1 = new Tone.Sampler('music/snare1.wav');
+			var snare2 = new Tone.Sampler('music/snare2.wav');
+			var snare3 = new Tone.Sampler('music/snare3.wav');
+			var snare4 = new Tone.Sampler('music/snare4.wav');
+			var snare5 = new Tone.Sampler('music/snare5.wav');
+
+
+
+			var toneArray = [cowbell, hihat, kick1, kick2, kick3, snare1, snare2, snare3, snare4, snare5];
+			for (var i in toneArray) {
+				toneArray[i].toMaster();
+			}
+			
 
 			// tone
 			var stepNumber = 0;
 			var beatsPerMeasure = 16;
 			var keysNumber = 8; 
-			var keysCeck = [];
-			keysCeck.length = keysNumber;
+			
 
 			// UI
 			var step = 100;
@@ -59,28 +60,39 @@
 				// console.log(time - lastTime);
 				// lastTime = time;
 				stepNumber = (stepNumber+1) % 16;
-
+				
 				lightUp();
 				/*
 				for (var i = 0; i < checkboxes.length; i++){
 				var box = checkboxes[i][stepNumber];
 				if (box.isChecked()){
-					keys.triggerAttack(noteNames[i], time);
+					
 				}}
 				*/
 
 				// trigger music file here: keys.triggerAttack(noteNames[i], time);
 
-					//keys.triggerAttack(noteNames[2], time);
+				for (var i in tones) {
+					var stepColumn = map(stepNumber, 0, 15, -750, 750);
+					if(tones[i].x === stepColumn) {
+						var whichNote = Math.round(map(tones[i].z, 350, -350, 0, 7));
+						toneArray[whichNote].triggerAttackRelease(1, time);
+					}
+				}
 				
 				
 
 			}, "16n");
+			Tone.Transport.start();
+  			
 			
+			function map(value, low1, high1, low2, high2) {
+			    return low2 + (high2 - low2) * (value - low1) / (high1 - low1);
+			}
 
 
-
-			// UI
+			// ==================================================== UI ====================================================
+			// ==================================================== UI ====================================================
 			var container;
 			var camera, scene, renderer;
 			var projector, plane;
@@ -93,6 +105,7 @@
 			var cubeGeometry = new THREE.BoxGeometry( 100, 100, 100 );
 			var cubeMaterial; 
 			var objects = [];
+			var tones = [];
 
 			var isIntersected = false;
 			
@@ -239,18 +252,22 @@
 			}
 
 
-			var intersects;
+			
+
+			//==========================
+			//*** mouse interaction ***
+			//==========================
 			//  ********************************************** drop brick ***************************************************
 			//  ********************************************** drop brick ***************************************************
 			function onDocumentMouseDown(event) {
 				event.preventDefault();
 
-				intersects = raycaster.intersectObjects(objects);
+				var intersects = raycaster.intersectObjects(objects);
 				cubeMaterial = new THREE.MeshLambertMaterial( { color: getRandomColor(), overdraw: 0.9, opacity:0.9 } );
 				// cubeMaterial = new THREE.MeshLambertMaterial( { color: getRandomColor(), overdraw: 0.9, opacity:0.9 } );
 
 				if(intersects.length > 0) {
-					isIntersected = true;
+					
 					var intersect = intersects[0];
 
 					normalMatrix.getNormalMatrix(intersect.object.matrixWorld);
@@ -264,21 +281,24 @@
 					scene.add(voxel);
 
 					objects.push(voxel);
-
+					tones.push(new Block(voxel.position.x, voxel.position.y, voxel.position.z));
+					
 					console.log(voxel.position);
 				}
-				// console.log(intersects.length);
+			}
 
+			var Block = function(x, y, z) {
+				this.x = x;
+  				this.y = y;
+  				this.z = z;
 			}
 
 
 			function onDocumentKeyDown( event ) {
 
 				switch( event.keyCode ) {
-
 					
 					case 17: isCtrlDown = true; break;
-
 				}
 
 			}
@@ -286,10 +306,8 @@
 			function onDocumentKeyUp( event ) {
 
 				switch ( event.keyCode ) {
-
-					
-					case 17: isCtrlDown = false; break;
-
+				
+					case 17: isCtrlDown = false; break;	
 				}
 
 			}
@@ -297,18 +315,10 @@
 
 
 
-			// start/stop
-			function intersectStart() {
-				// if (isIntersected) {
-					Tone.Transport.start();
-				// } else {
-				// 	Tone.Transport.stop();
-				// }				
-			}
 
-
-
-	
+			//==================================================================================================================================
+			//*** draw in each tone.js loop ***
+			//==================================================================================================================================
 			// draw lightened column
 			function lightUp() {
 				
@@ -375,9 +385,7 @@
 			function render(){
 
 				if ( isCtrlDown ) {
-
 					theta += mouse2D.x * 1.5;
-
 				}
 
 				camera.position.set(0, 900, 0);
@@ -387,8 +395,7 @@
 				camera.position.z = 1400 * Math.cos( THREE.Math.degToRad( theta ) );
 
 				camera.lookAt( target );
-
-				
+			
 
 				raycaster = projector.pickingRay( mouse2D.clone(), camera );
 				renderer.render( scene, camera );
